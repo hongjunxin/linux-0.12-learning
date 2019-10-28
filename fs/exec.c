@@ -139,9 +139,9 @@ static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 	new_fs = get_ds();
 	old_fs = get_fs();
 	if (from_kmem==2)
-		set_fs(new_fs);
+		set_fs(new_fs);  // 设置 fs 段寄存器指向内核数据段(ds)
 	while (argc-- > 0) {
-		if (from_kmem == 1)
+		if (from_kmem == 1)  // 字符串在用户空间，字符串数组在内核空间
 			set_fs(new_fs);
 		if (!(tmp = (char *)get_fs_long(((unsigned long *)argv)+argc)))
 			panic("argc is wrong");
@@ -177,6 +177,10 @@ static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 	return p;
 }
 
+// 修改局部描述符表中的描述符基址和段限长，并将参数和环境空间页面放置在数据段末端。	  
+// 参数：text_size -- 执行文件头部中 a_text 字段给出的代码段长度值
+//		 page -- 参数和环境变量空间页面指针数组
+// 返回：数据段限长值(64MB)
 static unsigned long change_ldt(unsigned long text_size,unsigned long * page)
 {
 	unsigned long code_limit,data_limit,code_base,data_base;
@@ -191,7 +195,7 @@ static unsigned long change_ldt(unsigned long text_size,unsigned long * page)
 	set_base(current->ldt[2],data_base);
 	set_limit(current->ldt[2],data_limit);
 /* make sure fs points to the NEW data segment */
-	__asm__("pushl $0x17\n\tpop %%fs"::);
+	__asm__("pushl $0x17\n\tpop %%fs"::); // fs 段寄存器中放入局部表数据段描述符的选择符(0x17)
 	data_base += data_limit - LIBRARY_SIZE;
 	for (i=MAX_ARG_PAGES-1 ; i>=0 ; i--) {
 		data_base -= PAGE_SIZE;
@@ -220,6 +224,7 @@ int do_execve(unsigned long * eip,long tmp,char * filename,
 	int sh_bang = 0;
 	unsigned long p=PAGE_SIZE*MAX_ARG_PAGES-4;
 
+	// eip[1]中是原代码段寄存器 cs，其中的选择符不可以是内核段选择符，也即内核不能调用本函数。
 	if ((0xffff & eip[1]) != 0x000f)
 		panic("execve called from supervisor mode");
 	for (i=0 ; i<MAX_ARG_PAGES ; i++)	/* clear page-table */
@@ -256,7 +261,7 @@ restart_interp:
 		 * This section does the #! interpretation.
 		 * Sorta complicated, but hopefully it will work.  -TYT
 		 */
-
+		// 例如：#! /bin/bash <parameter>
 		char buf[128], *cp, *interp, *i_name, *i_arg;
 		unsigned long old_fs;
 
@@ -266,21 +271,21 @@ restart_interp:
 		buf[127] = '\0';
 		if (cp = strchr(buf, '\n')) {
 			*cp = '\0';
-			for (cp = buf; (*cp == ' ') || (*cp == '\t'); cp++);
+			for (cp = buf; (*cp == ' ') || (*cp == '\t'); cp++); // 跳过空格和制表符
 		}
 		if (!cp || *cp == '\0') {
 			retval = -ENOEXEC; /* No interpreter name found */
 			goto exec_error1;
 		}
-		interp = i_name = cp;
+		interp = i_name = cp;  // interp => "/bin/bash <parameter>"
 		i_arg = 0;
 		for ( ; *cp && (*cp != ' ') && (*cp != '\t'); cp++) {
  			if (*cp == '/')
-				i_name = cp+1;
+				i_name = cp+1;  // i_name => "bash"
 		}
 		if (*cp) {
 			*cp++ = '\0';
-			i_arg = cp;
+			i_arg = cp;  // i_arg => "<parameter>"
 		}
 		/*
 		 * OK, we've parsed out the interpreter name and
@@ -370,9 +375,12 @@ restart_interp:
 	current->brk = ex.a_bss +
 		(current->end_data = ex.a_data +
 		(current->end_code = ex.a_text));
-	current->start_stack = p & 0xfffff000;
+	current->start_stack = p & 0xfffff000; // 设置进程堆栈开始字段为堆栈指针所在的页面
 	current->suid = current->euid = e_uid;
 	current->sgid = current->egid = e_gid;
+    // 将原调用系统中断的程序在堆栈上的代码指针替换为指向新执行程序的入口点，并将堆栈指针替换     
+    // 为新执行程序的堆栈指针。返回指令将弹出这些堆栈数据并使得 CPU 去执行新的执行程序，因此不会     
+    // 返回到原调用系统中断的程序中去了。 
 	eip[0] = ex.a_entry;		/* eip, magic happens :-) */
 	eip[3] = p;			/* stack pointer */
 	return 0;

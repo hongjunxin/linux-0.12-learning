@@ -48,7 +48,7 @@ static int rw_kmem(int rw,char * buf, int count, off_t * pos)
 
 // 外设都是通过读写设备上的寄存器来进行的，外设寄存器也称为“I/O端口”，
 // 而IO端口有两种编址方式：独立编址和统一编址。
-// 对于x86架构的统一编址，通过IN/OUT指令访问IO端口。PC架构一共有65536
+// 对于x86架构的独立编址，通过IN/OUT指令访问IO端口。PC架构一共有65536
 // 个8bit的I/O端口，组成64K个I/O地址空间
 static int rw_port(int rw,char * buf, int count, off_t * pos)
 {
