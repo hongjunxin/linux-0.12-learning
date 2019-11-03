@@ -23,6 +23,7 @@ extern inline volatile void oom(void)
 	do_exit(SIGSEGV);
 }
 
+// Çå³ýÒ³¸ßËÙ»º³å
 #define invalidate() \
 __asm__("movl %%eax,%%cr3"::"a" (0))
 
