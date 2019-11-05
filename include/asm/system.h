@@ -20,7 +20,7 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 #define iret() __asm__ ("iret"::)
 
 // (0x8000+(dpl<<13)+(type<<8)) => desc_struct.b
-// addr(处理函数地址) => desc_struct.a
+// addr(澶勭悊鍑芥暟鍦板潃) => desc_struct.a
 #define _set_gate(gate_addr,type,dpl,addr) \
 __asm__ ("movw %%dx,%%ax\n\t" \
 	"movw %0,%%dx\n\t" \
