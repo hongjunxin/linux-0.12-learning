@@ -229,10 +229,10 @@ gdt_descr:
 	.long _gdt		# magic number, but it works for me :^)
 
 	.align 3
-_idt:	.fill 256,8,0		# idt is uninitialized
+_idt:	.fill 256,8,0		# idt is uninitialized  /* idt 清零 */
 
-_gdt:	.quad 0x0000000000000000	/* NULL descriptor */
-	.quad 0x00c09a0000000fff	/* 16Mb */
-	.quad 0x00c0920000000fff	/* 16Mb */
+_gdt:	.quad 0x0000000000000000	/* NULL descriptor */ /* .quad 用来定义一个8字节的值 */
+	.quad 0x00c09a0000000fff	/* 16Mb */  /* gdt[1] */
+	.quad 0x00c0920000000fff	/* 16Mb */  /* gdt[2] */
 	.quad 0x0000000000000000	/* TEMPORARY - don't use */
 	.fill 252,8,0			/* space for LDT's and TSS's etc */

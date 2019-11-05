@@ -19,6 +19,8 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 
 #define iret() __asm__ ("iret"::)
 
+// (0x8000+(dpl<<13)+(type<<8)) => desc_struct.b
+// addr(处理函数地址) => desc_struct.a
 #define _set_gate(gate_addr,type,dpl,addr) \
 __asm__ ("movw %%dx,%%ax\n\t" \
 	"movw %0,%%dx\n\t" \
@@ -34,7 +36,7 @@ __asm__ ("movw %%dx,%%ax\n\t" \
 	_set_gate(&idt[n],14,0,addr)
 
 #define set_trap_gate(n,addr) \
-	_set_gate(&idt[n],15,0,addr)
+	_set_gate(&idt[n],15,0,addr) 
 
 #define set_system_gate(n,addr) \
 	_set_gate(&idt[n],15,3,addr)
