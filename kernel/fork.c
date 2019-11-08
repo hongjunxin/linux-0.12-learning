@@ -41,6 +41,15 @@ void verify_area(void * addr,int size)
 // 设置新任务的代码和数据段基址、限长，并复制页表
 // nr：新任务号
 // p：新任务数据结构指针
+/*
+0x17 即二进制 0001 0111，用选择符格式来解析该选择符，其表示的是，
+检索 LDT 表，特权级 3，表的索引下标值是 2（第 3 项），
+而 LDT 表中的第 3 项表示“用户程序的数据段描述符项”。
+
+0xf 即二进制 0000 1111，用选择符格式来解析该选择符，其表示的是，
+检索 LDT 表，特权级 3，表的索引下标值是 1（第 2 项），
+而 LDT 表中的第 2 项表示“用户程序的代码段描述符项”。
+*/
 int copy_mem(int nr,struct task_struct * p)
 {
 	unsigned long old_data_base,new_data_base,data_limit;

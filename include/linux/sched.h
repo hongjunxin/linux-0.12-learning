@@ -247,6 +247,8 @@ __asm__("movw %%dx,%0\n\t" \
 	  "d" (base) \
 	:"dx")
 
+// 段描述符的限长是由 2 个部分构成，分别是第1-2字节，第7字节的前4位，
+// 所以共有 20 个比特位来描述限长。
 #define _set_limit(addr,limit) \
 __asm__("movw %%dx,%0\n\t" \
 	"rorl $16,%%edx\n\t" \
@@ -262,6 +264,7 @@ __asm__("movw %%dx,%0\n\t" \
 #define set_base(ldt,base) _set_base( ((char *)&(ldt)) , base )
 #define set_limit(ldt,limit) _set_limit( ((char *)&(ldt)) , (limit-1)>>12 )
 
+// 段描述符的基地址是由 3 个部分构成中，分别是第 3-4、5、8 字节
 #define _get_base(addr) ({\
 unsigned long __base; \
 __asm__("movb %3,%%dh\n\t" \
@@ -277,6 +280,7 @@ __base;})
 #define get_base(ldt) _get_base( ((char *)&(ldt)) )
 
 // lsll -- load segment limit long
+// segment -- 选择符
 #define get_limit(segment) ({ \
 unsigned long __limit; \
 __asm__("lsll %1,%0\n\tincl %0":"=r" (__limit):"r" (segment)); \
