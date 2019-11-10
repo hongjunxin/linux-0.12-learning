@@ -170,9 +170,11 @@ struct task_struct {
 /* fs info */	-1,0022,NULL,NULL,NULL,NULL,0, \
 /* filp */	{NULL,}, \
 	{ \
-		{0,0}, \
-/* ldt */	{0x9f,0xc0fa00}, \
-		{0x9f,0xc0f200}, \
+/* ldt */ {0,0}, \
+/* 代码段长640K,基址 0x0,G=1,D=1,DPL=3,P=1,TYPE=0x0a */ \
+		  {0x9f,0xc0fa00}, \
+/* 数据段长640K,基址 0x0,G=1,D=1,DPL=3,P=1,TYPE=0x02 */ \
+		  {0x9f,0xc0f200}, \
 	}, \
 /*tss*/	{0,PAGE_SIZE+(long)&init_task,0x10,0,0,0,0,(long)&pg_dir,\
 	 0,0,0,0,0,0,0,0, \
@@ -185,7 +187,7 @@ struct task_struct {
 extern struct task_struct *task[NR_TASKS];
 extern struct task_struct *last_task_used_math;
 extern struct task_struct *current;
-extern unsigned long volatile jiffies;
+extern unsigned long volatile jiffies;  // 从开机开始算起的滴答数(10ms/滴答)
 extern unsigned long startup_time;
 extern int jiffies_offset;
 
@@ -200,13 +202,15 @@ extern int in_group_p(gid_t grp);
 /*
  * Entry into gdt where to find first TSS. 0-nul, 1-cs, 2-ds, 3-syscall
  * 4-TSS0, 5-LDT0, 6-TSS1 etc ...
- */
+ */ 
 #define FIRST_TSS_ENTRY 4
 #define FIRST_LDT_ENTRY (FIRST_TSS_ENTRY+1)
 #define _TSS(n) ((((unsigned long) n)<<4)+(FIRST_TSS_ENTRY<<3))
 #define _LDT(n) ((((unsigned long) n)<<4)+(FIRST_LDT_ENTRY<<3))
 #define ltr(n) __asm__("ltr %%ax"::"a" (_TSS(n)))
 #define lldt(n) __asm__("lldt %%ax"::"a" (_LDT(n)))
+// 取当前运行任务的任务号(是任务数组中的索引值，与进程号pid不同)
+// 返回：n -- 当前任务号
 #define str(n) \
 __asm__("str %%ax\n\t" \
 	"subl %2,%%eax\n\t" \
@@ -219,15 +223,25 @@ __asm__("str %%ax\n\t" \
  * This also clears the TS-flag if the task we switched to has used
  * tha math co-processor latest.
  */
+// 临时数据结构__tmp 用于组建 ljmp 指令的操作数。该操作数由 4 字节偏移
+// 址和 2 字节的段选择符组成。因此__tmp 中 a 的值是 32 位偏移值，而 b 
+// 的低 2 字节是新 TSS 段的择符（高 2 字节不用）。跳转到 TSS 段选择符会
+// 造成任务切换到该 TSS 对应的进程。对于造成任务切换的长跳转，a 值无用。
+// %0 -- 偏移地址(*&__tmp.a)
+// %1 -- 新的 TSS 选择符
+// dx -- 新任务 n 的 TSS 段选择符
+// ecx -- 新任务指针 task[n] 
 #define switch_to(n) {\
 struct {long a,b;} __tmp; \
 __asm__("cmpl %%ecx,_current\n\t" \
 	"je 1f\n\t" \
 	"movw %%dx,%1\n\t" \
 	"xchgl %%ecx,_current\n\t" \
+/* 执行长跳转至 *&__tmp，造成任务切换 */ \
 	"ljmp %0\n\t" \
 	"cmpl %%ecx,_last_task_used_math\n\t" \
 	"jne 1f\n\t" \
+/* 新任务上次使用过协处理器，则清零 cr0 的 TS 标志 */ \
 	"clts\n" \
 	"1:" \
 	::"m" (*&__tmp.a),"m" (*&__tmp.b), \
@@ -236,6 +250,10 @@ __asm__("cmpl %%ecx,_current\n\t" \
 
 #define PAGE_ALIGN(n) (((n)+0xfff)&0xfffff000)
 
+// 8字节的代码段/数据段描述符中，基地址是由3个部分组成的，
+// 由第3-4、5、8字节组成，对应着存放32位基地址的0-15、16-23、
+// 24-31比特位。
+// base => addr
 #define _set_base(addr,base) \
 __asm__("movw %%dx,%0\n\t" \
 	"rorl $16,%%edx\n\t" \
@@ -247,8 +265,10 @@ __asm__("movw %%dx,%0\n\t" \
 	  "d" (base) \
 	:"dx")
 
-// 段描述符的限长是由 2 个部分构成，分别是第1-2字节，第7字节的前4位，
-// 所以共有 20 个比特位来描述限长。
+// 8字节的代码段/数据段描述符中，限长是由2个部分组成的，
+// 由第1-2字节，第7字节的前4位组成，对应着存放20位限长的0-15、
+// 16-19比特位
+// limit => addr
 #define _set_limit(addr,limit) \
 __asm__("movw %%dx,%0\n\t" \
 	"rorl $16,%%edx\n\t" \
@@ -280,7 +300,11 @@ __base;})
 #define get_base(ldt) _get_base( ((char *)&(ldt)) )
 
 // lsll -- load segment limit long
-// segment -- 选择符
+// 取段选择符 segment 指定的描述符中的段限长值
+// lsl 指令会从指定段描述符中取出分散的限长比特位，并拼凑成完整
+// 的段限长置，放入指定的寄存器中，另外 lsl 指令所得的段限长是实际
+// 字节数减1的，所以这里要加1后才返回段限长值。
+// segment -- 段选择符
 #define get_limit(segment) ({ \
 unsigned long __limit; \
 __asm__("lsll %1,%0\n\tincl %0":"=r" (__limit):"r" (segment)); \
