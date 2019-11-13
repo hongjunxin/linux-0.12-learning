@@ -99,6 +99,7 @@ static inline void init_bucket_desc()
 	struct bucket_desc *bdesc, *first;
 	int	i;
 	
+	// 申请一页内存用来存放桶描述符
 	first = bdesc = (struct bucket_desc *) get_free_page();
 	if (!bdesc)
 		panic("Out of memory in init_bucket_desc()");
@@ -147,6 +148,9 @@ void *malloc(unsigned int len)
 		char		*cp;
 		int		i;
 
+		// 如果 free_bucket_desc 还是 NULL，则表明是第一次调用该程序，
+		// 则对描述符链表进行初始化，初始化后 free_bucket_desc 指向第一个
+		// 空闲桶描述符
 		if (!free_bucket_desc)	
 			init_bucket_desc();
 		bdesc = free_bucket_desc;
@@ -157,6 +161,8 @@ void *malloc(unsigned int len)
 		if (!cp)
 			panic("Out of memory in kernel malloc()");
 		/* Set up the chain of free objects */
+		// 将页面划分为大小相等的对象，并在每个对象的头4个字节存放
+		// 下一个对象的地址
 		for (i=PAGE_SIZE/bdir->size; i > 1; i--) {
 			*((char **) cp) = cp + bdir->size;
 			cp += bdir->size;
@@ -166,7 +172,8 @@ void *malloc(unsigned int len)
 		bdir->chain = bdesc;
 	}
 	retval = (void *) bdesc->freeptr;
-	bdesc->freeptr = *((void **) retval);
+	// retval 对象的头4个字节存放着下一个空闲对象的地址
+	bdesc->freeptr = *((void **) retval); 
 	bdesc->refcnt++;
 	sti();	/* OK, we're safe again */
 	return(retval);
@@ -179,6 +186,8 @@ void *malloc(unsigned int len)
  * 
  * We will #define a macro so that "free(x)" is becomes "free_s(x, 0)"
  */
+// obj -- 待释放对象的指针
+// size -- 待释放对象的大小/byte
 void free_s(void *obj, int size)
 {
 	void		*page;
@@ -205,11 +214,15 @@ found:
 	*((void **)obj) = bdesc->freeptr;
 	bdesc->freeptr = obj;
 	bdesc->refcnt--;
+	// 如果引用计数已等于0，则我们可以释放对应的内存页面和该桶描述符
 	if (bdesc->refcnt == 0) {
 		/*
 		 * We need to make sure that prev is still accurate.  It
 		 * may not be, if someone rudely interrupted us....
 		 */
+		// 1、如果该例程被其它程序中断，则在其它程序的运行期间，prev 指向
+		// 的对象可能被修改；2、bdesc 原本是等于 bdir->chain，但在该例程
+		// 被中断的期间有新的桶描述符插入 bdir->chain
 		if ((prev && (prev->next != bdesc)) ||
 		    (!prev && (bdir->chain != bdesc)))
 			for (prev = bdir->chain; prev; prev = prev->next)
@@ -218,6 +231,8 @@ found:
 		if (prev)
 			prev->next = bdesc->next;
 		else {
+			// 如果 prev 为 NULL，则说明 bdesc 是该桶目录项的首个桶描述符
+			// 即 bdesc 应该等于 bdir->chain
 			if (bdir->chain != bdesc)
 				panic("malloc bucket chains corrupted");
 			bdir->chain = bdesc->next;
