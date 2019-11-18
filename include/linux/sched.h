@@ -205,6 +205,9 @@ extern int in_group_p(gid_t grp);
  */ 
 #define FIRST_TSS_ENTRY 4
 #define FIRST_LDT_ENTRY (FIRST_TSS_ENTRY+1)
+// n -- 从0开始，指第0个任务
+// _TSS(n) -- 获取第n个任务在GDT表中TSS段描述符的地址偏移值（以gdt为起点）
+// _LDT(n) -- 获取第n个任务在GDT表中LDT段描述符的地址偏移值（以gdt为起点）
 #define _TSS(n) ((((unsigned long) n)<<4)+(FIRST_TSS_ENTRY<<3))
 #define _LDT(n) ((((unsigned long) n)<<4)+(FIRST_LDT_ENTRY<<3))
 #define ltr(n) __asm__("ltr %%ax"::"a" (_TSS(n)))
