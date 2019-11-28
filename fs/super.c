@@ -264,6 +264,7 @@ int sys_mount(char * dev_name, char * dir_name, int rw_flag)
 
 // 挂载根文件系统
 // 该函数在系统开机初始化 sys_setup() 时被调用
+// 最主要是加载根文件系统的超级块，获取根文件系统的根节点
 void mount_root(void)
 {
 	int i,free;
@@ -297,6 +298,10 @@ void mount_root(void)
 	current->root = mi;
 	free=0;
 	i=p->s_nzones;  // 该设备的逻辑块（盘块）总数
+	/* 获取根文件系统中块和节点的使用量情况。
+	   用8块内存块(8x1024x8 = 8192x8 bit)来存放盘块的使用标志，1为使用，0为未使用。
+	   节点也用同样的设计。
+	*/
 	while (-- i >= 0)
 		if (!set_bit(i&8191,p->s_zmap[i>>13]->b_data))
 			free++;
