@@ -173,7 +173,7 @@ static struct super_block * read_super(int dev)
 	// 该 i 节点允许被用的话，如果申请该 i 节点成功并返回它的
 	// i 节点编号即 0，则与申请失败则返回 0 的设定发生了冲突，
 	// 所以 s_imap[0]->b_data[0] i 节点不给使用
-	s->s_imap[0]->b_data[0] |= 1;
+	s->s_imap[0]->b_data[0] |= 1;  /* 注意这里是与0x1(第0位被置1)，刻板印象容易看成 =1 */
 	s->s_zmap[0]->b_data[0] |= 1;
 	free_super(s);  // 解锁该超级块，不是释放
 	return s;

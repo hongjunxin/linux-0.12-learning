@@ -149,13 +149,15 @@ void schedule(void)
 		next = 0;
 		i = NR_TASKS;
 		p = &task[NR_TASKS];
-		while (--i) {
+		while (--i) {  /* 任务0不参与剩余时间片的比较 */
 			if (!*--p)
 				continue;
 			if ((*p)->state == TASK_RUNNING && (*p)->counter > c)
 				c = (*p)->counter, next = i;
 		}
-		if (c) break;
+		if (c) break;  
+		/* 处于running状态的任务，它们剩余的时间片都用完了，
+		   则全部重新分配时间片，包括不处于running状态的任务，但不包括任务0 */
 		for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 			if (*p)
 				(*p)->counter = ((*p)->counter >> 1) +
@@ -171,11 +173,6 @@ int sys_pause(void)
 	return 0;
 }
 
-/*
- * 当前任务置为不可中断的等待状态，并让睡眠队列头的指针指向当前任务。
- * 只有明确地唤醒时才会返回。该函数提供了进程与中断处理程序之间的同步机制。
- * 函数参数 *p 是放置等待任务的队列头指针
- */
 static inline void __sleep_on(struct task_struct **p, int state)
 {
 	struct task_struct *tmp;
@@ -184,19 +181,19 @@ static inline void __sleep_on(struct task_struct **p, int state)
 		return;
 	if (current == &(init_task.task))
 		panic("task[0] trying to sleep");
-	tmp = *p;
+	tmp = *p;  // 保存睡眠队列当前的首位任务指针
 	*p = current;
 	current->state = state;
-repeat:	schedule();
-	if (*p && *p != current) {
-		(**p).state = 0;	// 0：runnable
-		current->state = TASK_UNINTERRUPTIBLE;
+repeat:	schedule(); // schedule()中只唤醒可中断的任务，其实就是让任务的state等于0
+	if (*p && *p != current) { // 从被唤醒到执行这条语句之间，有其它任务T被加入到等待队列
+		(**p).state = 0;	   // 首位，所以把这次的被唤醒机会让给了任务T，自己再次进入不可
+		current->state = TASK_UNINTERRUPTIBLE;  // 中断状态，等待下次wake_up()的唤醒？
 		goto repeat;
 	}
 	if (!*p)
 		printk("Warning: *P = NULL\n\r");
-	if (*p = tmp)
-		tmp->state=0;
+	if (*p = tmp)      
+		tmp->state=0;  // 为什么要唤醒tmp？
 }
 
 /* 将当前任务置为可中断的等待状态，并放入 *p 指定的等待队列中 */
@@ -205,6 +202,11 @@ void interruptible_sleep_on(struct task_struct **p)
 	__sleep_on(p,TASK_INTERRUPTIBLE);
 }
 
+/*
+ * 当前任务置为不可中断的等待状态，并让睡眠队列头的指针指向当前任务。
+ * 只有明确地唤醒时才会返回。该函数提供了进程与中断处理程序之间的同步机制。
+ * 函数参数 *p 是放置等待任务的队列头指针
+ */
 void sleep_on(struct task_struct **p)
 {
 	__sleep_on(p,TASK_UNINTERRUPTIBLE);
