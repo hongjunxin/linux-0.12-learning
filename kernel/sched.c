@@ -451,7 +451,7 @@ void sched_init(void)
 	}
 /* Clear NT, so that we won't have troubles with that later on */
 	__asm__("pushfl ; andl $0xffffbfff,(%esp) ; popfl");
-	ltr(0);		// 将任务 0 的 TSS 加载到任务寄存器 tr
+	ltr(0);		// 将任务 0 的 TSS 段描述符地址加载到任务寄存器 tr
 	lldt(0);	// 将局部描述符表加载到局部描述符表寄存器
 	
 	// 初始化 8253 定时器

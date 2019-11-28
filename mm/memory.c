@@ -44,21 +44,21 @@ unsigned long HIGH_MEMORY = 0;
 #define copy_page(from,to) \
 __asm__("cld ; rep ; movsl"::"S" (from),"D" (to),"c" (1024):"cx","di","si")
 
-// Ò»¸öÊı×éÔªËØ¶ÔÓ¦Ò»Ò³ÄÚ´æ
+// ä¸€ä¸ªæ•°ç»„å…ƒç´ å¯¹åº”ä¸€é¡µå†…å­˜
 unsigned char mem_map [ PAGING_PAGES ] = {0,};
 
 /*
  * Free a page of memory at physical address 'addr'. Used by
  * 'free_page_tables()'
  */
-// addr -- ÎïÀíÄÚ´æÒ³µÄÎïÀíµØÖ·
+// addr -- ç‰©ç†å†…å­˜é¡µçš„ç‰©ç†åœ°å€
 void free_page(unsigned long addr)
 {
 	if (addr < LOW_MEM) return;
 	if (addr >= HIGH_MEMORY)
 		panic("trying to free nonexistent page");
 	addr -= LOW_MEM;
-	addr >>= 12;  // ³ıÒÔ4096
+	addr >>= 12;  // é™¤ä»¥4096
 	if (mem_map[addr]--) return;
 	mem_map[addr]=0;
 	panic("trying to free free page");
@@ -68,34 +68,34 @@ void free_page(unsigned long addr)
  * This function frees a continuos block of page tables, as needed
  * by 'exit()'. As does copy_page_tables(), this handles only 4Mb blocks.
  */
-// from -- ÏßĞÔµØÖ·
-// size -- ÊÍ·ÅµÄ³¤¶È£¬µ¥Î»ÊÇ×Ö½Ú
+// from -- çº¿æ€§åœ°å€
+// size -- é‡Šæ”¾çš„é•¿åº¦ï¼Œå•ä½æ˜¯å­—èŠ‚
 int free_page_tables(unsigned long from,unsigned long size)
 {
 	unsigned long *pg_table;
 	unsigned long * dir, nr;
 
-	// from ¸ÃÏßĞÔµØÖ·µÄºó22¸ö±ÈÌØÎ»±ØĞë¶¼ÊÇ0
-	// Ò»¸öÒ³±íÓĞ1024Ïî£¬Ã¿Ïî¶ÔÓ¦Ò»¸öÎïÀíÒ³£¬Ò»¸öÎïÀíÒ³³¤¶È4KB£¬
-	// ËùÒÔ from Òª4MB¶ÔÆë
+	// from è¯¥çº¿æ€§åœ°å€çš„å22ä¸ªæ¯”ç‰¹ä½å¿…é¡»éƒ½æ˜¯0
+	// ä¸€ä¸ªé¡µè¡¨æœ‰1024é¡¹ï¼Œæ¯é¡¹å¯¹åº”ä¸€ä¸ªç‰©ç†é¡µï¼Œä¸€ä¸ªç‰©ç†é¡µé•¿åº¦4KBï¼Œ
+	// æ‰€ä»¥ from è¦4MBå¯¹é½
 	if (from & 0x3fffff)
 		panic("free_page_tables called with wrong alignment");
 	if (!from)
 		panic("Trying to free up swapper memory space");
-	// ¸Ãº¯ÊıÖ»´¦Àí4MBµÄÄÚ´æ¿é£¬ËùÒÔÒª°Ñ´ıÊÍ·ÅµÄ×Ö½ÚÊı»»ËãÎª´ıÊÍ·Å
-	// µÄÒ³Ä¿Â¼Ïî£¬¼´ÒªÊÍ·Å¶àÉÙ¸öÒ³Ä¿Â¼Ïî¡£ËùÒÔ¼´Ê¹ÒªÊÍ·ÅµÄ×Ö½ÚÊı½öÓĞ
-	// 1¸ö×Ö½Ú£¬»»Ëãºó¾ÍÒªÊÍ·Å4MBµÄÄÚ´æ¿é
+	// è¯¥å‡½æ•°åªå¤„ç†4MBçš„å†…å­˜å—ï¼Œæ‰€ä»¥è¦æŠŠå¾…é‡Šæ”¾çš„å­—èŠ‚æ•°æ¢ç®—ä¸ºå¾…é‡Šæ”¾
+	// çš„é¡µç›®å½•é¡¹ï¼Œå³è¦é‡Šæ”¾å¤šå°‘ä¸ªé¡µç›®å½•é¡¹ã€‚æ‰€ä»¥å³ä½¿è¦é‡Šæ”¾çš„å­—èŠ‚æ•°ä»…æœ‰
+	// 1ä¸ªå­—èŠ‚ï¼Œæ¢ç®—åå°±è¦é‡Šæ”¾4MBçš„å†…å­˜å—
 	size = (size + 0x3fffff) >> 22;
-	// Ò³Ä¿Â¼±íµÄÎïÀíµØÖ··¶Î§ÊÇ 0-4095 Ö®¼ä£¬Ã¿¸öÄ¿Â¼Ïî³¤¶ÈÎª4×Ö½Ú£¬
-	// ËùÒÔÒ³Ä¿Â¼ÏîµÄºÏ·¨µØÖ·ÊÇ 0-4092(0xffc)£¬²¢ÇÒÒª4×Ö½Ú¶ÔÆë
+	// é¡µç›®å½•è¡¨çš„ç‰©ç†åœ°å€èŒƒå›´æ˜¯ 0-4095 ä¹‹é—´ï¼Œæ¯ä¸ªç›®å½•é¡¹é•¿åº¦ä¸º4å­—èŠ‚ï¼Œ
+	// æ‰€ä»¥é¡µç›®å½•é¡¹çš„åˆæ³•åœ°å€æ˜¯ 0-4092(0xffc)ï¼Œå¹¶ä¸”è¦4å­—èŠ‚å¯¹é½
 	dir = (unsigned long *) ((from>>20) & 0xffc); /* _pg_dir = 0 */
 	for ( ; size-->0 ; dir++) {
-		if (!(1 & *dir))  // Èç¹û¸ÃÒ³Ä¿Â¼ÏîÎŞĞ§(PÎ»=0)£¬±íÃ÷Ã»ÓĞ¶ÔÓ¦µÄÒ³±í
+		if (!(1 & *dir))  // å¦‚æœè¯¥é¡µç›®å½•é¡¹æ— æ•ˆ(Pä½=0)ï¼Œè¡¨æ˜æ²¡æœ‰å¯¹åº”çš„é¡µè¡¨
 			continue;
-		pg_table = (unsigned long *) (0xfffff000 & *dir); // È¡Ò³±íµØÖ·
+		pg_table = (unsigned long *) (0xfffff000 & *dir); // å–é¡µè¡¨åœ°å€
 		for (nr=0 ; nr<1024 ; nr++) {
 			if (*pg_table) {
-				if (1 & *pg_table)  // Ò³±íÏîÊÇ·ñÓĞĞ§
+				if (1 & *pg_table)  // é¡µè¡¨é¡¹æ˜¯å¦æœ‰æ•ˆ
 					free_page(0xfffff000 & *pg_table);
 				else
 					swap_free(*pg_table >> 1);
@@ -103,8 +103,8 @@ int free_page_tables(unsigned long from,unsigned long size)
 			}
 			pg_table++;
 		}
-		free_page(0xfffff000 & *dir); // Ò³±íÎïÀíµØÖ·ÔÚ1MBÒÔÄÚ£¬ËùÒÔÕâ¾ä»°Ã»Êµ¼Ê×÷ÓÃ£¿
-		*dir = 0; // Ò³Ä¿Â¼ÏîÇåÁã
+		free_page(0xfffff000 & *dir); // é¡µè¡¨ç‰©ç†åœ°å€åœ¨1MBä»¥å†…ï¼Œæ‰€ä»¥è¿™å¥è¯æ²¡å®é™…ä½œç”¨ï¼Ÿ
+		*dir = 0; // é¡µç›®å½•é¡¹æ¸…é›¶
 	}
 	invalidate();
 	return 0;
@@ -127,6 +127,8 @@ int free_page_tables(unsigned long from,unsigned long size)
  * 1 Mb-range, so the pages can be shared with the kernel. Thus the
  * special case for nr=xxxx.
  */
+// from to -- çº¿æ€§åœ°å€
+// size -- è¦å¤åˆ¶çš„é•¿åº¦ï¼Œå•ä½æ˜¯å­—èŠ‚ 
 int copy_page_tables(unsigned long from,unsigned long to,long size)
 {
 	unsigned long * from_page_table;
@@ -138,8 +140,14 @@ int copy_page_tables(unsigned long from,unsigned long to,long size)
 
 	if ((from&0x3fffff) || (to&0x3fffff))
 		panic("copy_page_tables called with wrong alignment");
+	/*
+	   å¯¹äº32ä½çš„çº¿æ€§åœ°å€ï¼Œé«˜10ä½æ˜¯é¡µç›®å½•é¡¹çš„ç´¢å¼•å€¼ï¼Œå³from>>22ï¼Œä½†å› ä¸ºé¡µç›®å½•è¡¨
+	   çš„ç‰©ç†åŸºåœ°å€æ˜¯0ï¼Œå¹¶ä¸”æ¯é¡¹é¡µç›®å½•é¡¹çš„å¤§å°æ˜¯4ä¸ªå­—èŠ‚ï¼Œæ‰€ä»¥from>>2ï¼Œå†<<2(ä¹˜ä»¥4)
+	   å°†å¾—åˆ°è¯¥é¡µç›®å½•é¡¹çš„åœ°å€ï¼Œè¯¥åœ°å€æ˜¯ç‰©ç†åœ°å€ï¼Œå› ä¸ºå†…æ ¸æ€æ•°æ®æ®µçš„åŸºåœ°å€æ˜¯0
+	*/
 	from_dir = (unsigned long *) ((from>>20) & 0xffc); /* _pg_dir = 0 */
 	to_dir = (unsigned long *) ((to>>20) & 0xffc);
+	// å°†è¦å¤åˆ¶çš„å­—èŠ‚æ•°è½¬æ¢ä¸ºè¦å¤šå°‘ä¸ª4MBå—ï¼Œæ¯”å¦‚ä¸€ä¸ªè¿›ç¨‹çš„æ®µé™é•¿æ˜¯64MBï¼Œåˆ™éœ€è¦16ä¸ªé¡µè¡¨
 	size = ((unsigned) (size+0x3fffff)) >> 22;
 	for( ; size-->0 ; from_dir++,to_dir++) {
 		if (1 & *to_dir)
@@ -147,10 +155,11 @@ int copy_page_tables(unsigned long from,unsigned long to,long size)
 		if (!(1 & *from_dir))
 			continue;
 		from_page_table = (unsigned long *) (0xfffff000 & *from_dir);
+		// ä¸ºæ–°è¿›ç¨‹ç”³è¯·1ä¸ªé¡µè¡¨ï¼Œå¯å­˜æ”¾4MBçš„æ•°æ®(1024x4KB=4MB)
 		if (!(to_page_table = (unsigned long *) get_free_page()))
 			return -1;	/* Out of memory, see freeing */
-		*to_dir = ((unsigned long) to_page_table) | 7; // 7ÊÇ±êÖ¾ĞÅÏ¢£¬(usr,R/W,present)
-		nr = (from==0)?0xA0:1024;
+		*to_dir = ((unsigned long) to_page_table) | 7; // 7æ˜¯æ ‡å¿—ä¿¡æ¯ï¼Œ(usr,RW,present)
+		nr = (from==0)?0xA0:1024;  // å¦‚æœå¤åˆ¶æºæ˜¯å†…æ ¸çš„ä»£ç æ®µ/æ•°æ®æ®µï¼Œåˆ™åªå¤åˆ¶160(0xA0)ä¸ªå†…å­˜é¡µé¢
 		for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
 			this_page = *from_page_table;
 			if (!this_page)
@@ -159,17 +168,17 @@ int copy_page_tables(unsigned long from,unsigned long to,long size)
 				if (!(new_page = get_free_page()))
 					return -1;
 				read_swap_page(this_page>>1, (char *) new_page);
-				*to_page_table = this_page;
+				*to_page_table = this_page; // å½“æ–°è¿›ç¨‹éœ€è¦ç”¨åˆ°è¯¥é¡µé¢æ—¶ï¼Œè‡ªå·±å†å»å°†æ•°æ®ä»ç¡¬ç›˜åŠ è½½åˆ°å†…å­˜ï¼Ÿ
 				*from_page_table = new_page | (PAGE_DIRTY | 7);
 				continue;
 			}
-			this_page &= ~2;  // R/W Î»ÖÃ0£¬ÉèÖÃÎªÖ»¶Á
+			this_page &= ~2;  // å…±äº«çš„å†…å­˜é¡µé¢è¢«è®¾ä¸ºåªè¯»
 			*to_page_table = this_page;
 			if (this_page > LOW_MEM) {
 				*from_page_table = this_page;
 				this_page -= LOW_MEM;
 				this_page >>= 12;
-				mem_map[this_page]++;
+				mem_map[this_page]++;  // è¢«å…±äº«çš„å†…å­˜é¡µé¢ï¼Œå…¶å¼•ç”¨è®¡æ•°+1
 			}
 		}
 	}
@@ -183,10 +192,10 @@ int copy_page_tables(unsigned long from,unsigned long to,long size)
  * out of memory (either when trying to access page-table or
  * page.)
  */
-// °ÑÒ»ÎïÀíÄÚ´æÒ³Ó³Éäµ½Ö¸¶¨µÄÏßĞÔµØÖ·£¬¼´ĞŞ¸ÄÏßĞÔµØÖ·»»ËãºóµÄ
-// Ò³Ä¿Â¼ºÍÒ³±íÖĞµÄĞÅÏ¢
-// page -- ÄÚ´æÒ³µÄÎïÀíµØÖ·
-// address -- ÏßĞÔµØÖ· 
+// æŠŠä¸€ç‰©ç†å†…å­˜é¡µæ˜ å°„åˆ°æŒ‡å®šçš„çº¿æ€§åœ°å€ï¼Œå³ä¿®æ”¹çº¿æ€§åœ°å€æ¢ç®—åçš„
+// é¡µç›®å½•å’Œé¡µè¡¨ä¸­çš„ä¿¡æ¯
+// page -- å†…å­˜é¡µçš„ç‰©ç†åœ°å€
+// address -- çº¿æ€§åœ°å€ 
 static unsigned long put_page(unsigned long page,unsigned long address)
 {
 	unsigned long tmp, *page_table;
@@ -233,7 +242,7 @@ unsigned long put_dirty_page(unsigned long page, unsigned long address)
 	else {
 		if (!(tmp=get_free_page()))
 			return 0;
-		*page_table = tmp|7;  // ÉèÖÃÒ³Ä¿Â¼ÏîÄÚÈİ(Ò³±íµØÖ·+±êÖ¾Î»)
+		*page_table = tmp|7;  // è®¾ç½®é¡µç›®å½•é¡¹å†…å®¹(é¡µè¡¨åœ°å€+æ ‡å¿—ä½)
 		page_table = (unsigned long *) tmp;
 	}
 	page_table[(address>>12) & 0x3ff] = page | (PAGE_DIRTY | 7);
@@ -241,16 +250,16 @@ unsigned long put_dirty_page(unsigned long page, unsigned long address)
 	return page;
 }
 
-// È¡ÏûĞ´±£»¤Ò³Ãæ£¬ÓÃÓÚÒ³Òì³£ÖĞ¶Ï¹ı³ÌÖĞĞ´±£»¤Òì³£µÄ´¦Àí£¨Ğ´Ê±¸´ÖÆ£©
-// table_entry -- Ò³±íÏîÖ¸Õë
+// å–æ¶ˆå†™ä¿æŠ¤é¡µé¢ï¼Œç”¨äºé¡µå¼‚å¸¸ä¸­æ–­è¿‡ç¨‹ä¸­å†™ä¿æŠ¤å¼‚å¸¸çš„å¤„ç†ï¼ˆå†™æ—¶å¤åˆ¶ï¼‰
+// table_entry -- é¡µè¡¨é¡¹æŒ‡é’ˆ
 void un_wp_page(unsigned long * table_entry)
 {
 	unsigned long old_page,new_page;
 
 	old_page = 0xfffff000 & *table_entry;
-	// ÆäÔÚÒ³ÃæÓ³Éä×Ö½ÚÍ¼Êı×éÖĞÖµÎª 1 ±íÊ¾Ã»ÓÃ±»¹²Ïí
+	// å…¶åœ¨é¡µé¢æ˜ å°„å­—èŠ‚å›¾æ•°ç»„ä¸­å€¼ä¸º 1 è¡¨ç¤ºæ²¡ç”¨è¢«å…±äº«
 	if (old_page >= LOW_MEM && mem_map[MAP_NR(old_page)]==1) {
-		*table_entry |= 2;  // R/w => 1,±íÊ¾¿ÉĞ´
+		*table_entry |= 2;  // R/w => 1,è¡¨ç¤ºå¯å†™
 		invalidate();
 		return;
 	}
@@ -270,10 +279,10 @@ void un_wp_page(unsigned long * table_entry)
  *
  * If it's in code space we exit with a segment error.
  */
-// Ò³Òì³£ÖĞ¶Ï´¦Àíµ÷ÓÃµÄ C º¯Êı¡£Ğ´¹²ÏíÒ³Ãæ´¦Àíº¯Êı£¬ÔÚ page.s ÖĞ±»µ÷ÓÃ¡£
-// Ğ´¹²ÏíÒ³ÃæÊ±£¬ĞèÒª¸´ÖÆÒ³Ãæ£¨Ğ´Ê±¸´ÖÆ£©
-// error_code -- ÓÉ CPU ×Ô¶¯Éú³É
-// address -- Ò³ÃæÏßĞÔµØÖ· 
+// é¡µå¼‚å¸¸ä¸­æ–­å¤„ç†è°ƒç”¨çš„ C å‡½æ•°ã€‚å†™å…±äº«é¡µé¢å¤„ç†å‡½æ•°ï¼Œåœ¨ page.s ä¸­è¢«è°ƒç”¨ã€‚
+// å†™å…±äº«é¡µé¢æ—¶ï¼Œéœ€è¦å¤åˆ¶é¡µé¢ï¼ˆå†™æ—¶å¤åˆ¶ï¼‰
+// error_code -- ç”± CPU è‡ªåŠ¨ç”Ÿæˆ
+// address -- é¡µé¢çº¿æ€§åœ°å€ 
 void do_wp_page(unsigned long error_code,unsigned long address)
 {
 	if (address < TASK_SIZE)
@@ -294,16 +303,16 @@ void do_wp_page(unsigned long error_code,unsigned long address)
 
 }
 
-// ÑéÖ¤Ò³ÃæÊÇ·ñ¿ÉĞ´£¬Èç¹û²»ÄÜĞ´Ôò¸´ÖÆÒ³Ãæ¡£
-// address -- ÏßĞÔµØÖ·
+// éªŒè¯é¡µé¢æ˜¯å¦å¯å†™ï¼Œå¦‚æœä¸èƒ½å†™åˆ™å¤åˆ¶é¡µé¢ã€‚
+// address -- çº¿æ€§åœ°å€
 void write_verify(unsigned long address)
 {
 	unsigned long page;
 
 	if (!( (page = *((unsigned long *) ((address>>20) & 0xffc)) )&1))
 		return;
-	page &= 0xfffff000;  // »ñÈ¡Ò³±íµØÖ·
-	page += ((address>>10) & 0xffc);  // »ñÈ¡Ò³±íÏîµØÖ·
+	page &= 0xfffff000;  // è·å–é¡µè¡¨åœ°å€
+	page += ((address>>10) & 0xffc);  // è·å–é¡µè¡¨é¡¹åœ°å€
 	if ((3 & *(unsigned long *) page) == 1)  /* non-writeable, present */
 		un_wp_page((unsigned long *) page);
 	return;
@@ -327,7 +336,7 @@ void get_empty_page(unsigned long address)
  * NOTE! This assumes we have checked that p != current, and that they
  * share the same executable or library.
  */
-// address -- (Ò³ÃæÏßĞÔµØÖ· - current->start_code) 
+// address -- (é¡µé¢çº¿æ€§åœ°å€ - current->start_code) 
 static int try_to_share(unsigned long address, struct task_struct * p)
 {
 	unsigned long from;
@@ -347,7 +356,7 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 	from_page = from + ((address>>10) & 0xffc);
 	phys_addr = *(unsigned long *) from_page;
 /* is the page clean and present? */
-	if ((phys_addr & 0x41) != 0x01) // 0x41 ¶ÔÓ¦DirtyºÍPresent±êÖ¾
+	if ((phys_addr & 0x41) != 0x01) // 0x41 å¯¹åº”Dirtyå’ŒPresentæ ‡å¿—
 		return 0;
 	phys_addr &= 0xfffff000;
 	if (phys_addr >= HIGH_MEMORY || phys_addr < LOW_MEM)
@@ -360,7 +369,7 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 			oom();
 	to &= 0xfffff000;
 	to_page = to + ((address>>10) & 0xffc);
-	if (1 & *(unsigned long *) to_page) // ¶ÔÓ¦µÄÒ³ÃæÒÑ¾­´æÔÚ
+	if (1 & *(unsigned long *) to_page) // å¯¹åº”çš„é¡µé¢å·²ç»å­˜åœ¨
 		panic("try_to_share: to_page already exists");
 /* share them: write-protect */
 	*(unsigned long *) from_page &= ~2;
@@ -404,9 +413,9 @@ static int share_page(struct m_inode * inode, unsigned long address)
 	return 0;
 }
 
-// Ò³Òì³£ÖĞ¶Ï´¦Àíµ÷ÓÃµÄº¯Êı£¬´¦ÀíÈ±Ò³Òì³£Çé¿ö¡£
-// error_code -- ÓÉ CPU ×Ô¶¯Éú³É
-// address -- Ò³ÃæµÄÏßĞÔµØÖ·
+// é¡µå¼‚å¸¸ä¸­æ–­å¤„ç†è°ƒç”¨çš„å‡½æ•°ï¼Œå¤„ç†ç¼ºé¡µå¼‚å¸¸æƒ…å†µã€‚
+// error_code -- ç”± CPU è‡ªåŠ¨ç”Ÿæˆ
+// address -- é¡µé¢çš„çº¿æ€§åœ°å€
 void do_no_page(unsigned long error_code,unsigned long address)
 {
 	int nr[4];
@@ -426,27 +435,27 @@ void do_no_page(unsigned long error_code,unsigned long address)
 		page &= 0xfffff000;
 		page += (address >> 10) & 0xffc;
 		tmp = *(unsigned long *) page;
-		// Ò³±íÏîÓĞĞ§µ«Ò³Ãæ±»½»»»³ö£¬Ôò°ÑÒ³Ãæ»»½øÄÚ´æ
+		// é¡µè¡¨é¡¹æœ‰æ•ˆä½†é¡µé¢è¢«äº¤æ¢å‡ºï¼Œåˆ™æŠŠé¡µé¢æ¢è¿›å†…å­˜
 		if (tmp && !(1 & tmp)) {
 			swap_in((unsigned long *) page);
 			return;
 		}
 	}
 	address &= 0xfffff000;
-	// ¼ÆËãÖ¸¶¨µÄÏßĞÔµØÖ·ÔÚ½ø³Ì¿Õ¼äÖĞÏà¶ÔÓÚ½ø³Ì»ùÖ·µÄÆ«ÒÆ³¤¶ÈÖµ
-	// current->end_data ÊÇ´úÂë¶Î¼ÓÊı¾İ¶ÎµÄ³¤¶È
+	// è®¡ç®—æŒ‡å®šçš„çº¿æ€§åœ°å€åœ¨è¿›ç¨‹ç©ºé—´ä¸­ç›¸å¯¹äºè¿›ç¨‹åŸºå€çš„åç§»é•¿åº¦å€¼
+	// current->end_data æ˜¯ä»£ç æ®µåŠ æ•°æ®æ®µçš„é•¿åº¦
 	tmp = address - current->start_code; 
 	if (tmp >= LIBRARY_OFFSET ) {
 		inode = current->library;
-		// ¿âµÄÎ»ÖÃÔÚelfÎÄ¼şÖĞÔõÃ´²¼¾ÖµÄ£¿
+		// åº“çš„ä½ç½®åœ¨elfæ–‡ä»¶ä¸­æ€ä¹ˆå¸ƒå±€çš„ï¼Ÿ
 		block = 1 + (tmp-LIBRARY_OFFSET) / BLOCK_SIZE;
 	} else if (tmp < current->end_data) {
 		inode = current->executable;
-		// i ½ÚµãÖĞ£¬ÎÄ¼şÊı¾İ¿éµÄÍ·¿é¼´ i_zone[0] Ö¸ÏòµÄÊÇ´æ·Å³ÌĞòÍ·µÄÂß¼­¿éºÅ
-		// i_zone[1] ²Å¿ªÊ¼Ö¸Ïò´æ·Å³ÌĞò´úÂëºÍÊı¾İµÄÂß¼­¿éºÅ
+		// i èŠ‚ç‚¹ä¸­ï¼Œæ–‡ä»¶æ•°æ®å—çš„å¤´å—å³ i_zone[0] æŒ‡å‘çš„æ˜¯å­˜æ”¾ç¨‹åºå¤´çš„é€»è¾‘å—å·
+		// i_zone[1] æ‰å¼€å§‹æŒ‡å‘å­˜æ”¾ç¨‹åºä»£ç å’Œæ•°æ®çš„é€»è¾‘å—å·
 		block = 1 + tmp / BLOCK_SIZE;
 	} else {
-		// Ê²Ã´Çé¿öÏÂ tmp >= current->end_data ?
+		// ä»€ä¹ˆæƒ…å†µä¸‹ tmp >= current->end_data ?
 		inode = NULL;
 		block = 0;
 	}
@@ -462,7 +471,7 @@ void do_no_page(unsigned long error_code,unsigned long address)
 	for (i=0 ; i<4 ; block++,i++)
 		nr[i] = bmap(inode,block);
 	bread_page(page,inode->i_dev,nr);
-	// ³¬¹ı current->end_data µÄ²¿·ÖÒªÇåÁã
+	// è¶…è¿‡ current->end_data çš„éƒ¨åˆ†è¦æ¸…é›¶
 	i = tmp + 4096 - current->end_data;
 	if (i>4095)
 		i = 0;
@@ -537,3 +546,4 @@ void show_mem(void)
 	}
 	printk("Memory found: %d (%d)\n\r",free-shared,total);
 }
+
