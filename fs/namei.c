@@ -436,6 +436,7 @@ int open_namei(const char * pathname, int flag, int mode,
 	if (!(dir = dir_namei(pathname,&namelen,&basename,NULL)))
 		return -ENOENT;
 	if (!namelen) {			/* special case: '/usr/' etc */
+		/* 如果是 只读&&不可新建&&不可截断，则返回的是一个目录的i节点 */
 		if (!(flag & (O_ACCMODE|O_CREAT|O_TRUNC))) {
 			*res_inode=dir;
 			return 0;

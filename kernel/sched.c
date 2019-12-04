@@ -173,6 +173,11 @@ int sys_pause(void)
 	return 0;
 }
 
+/*
+书上的表述是睡眠队列，但这里的“队列”并不是指数据结构中那个FIFO属性的队列，
+而指的是队伍、一堆任务的意思。
+源码是用栈的形式来管理这些睡眠任务的，所以p是指向栈顶的任务指针的指针。
+*/
 static inline void __sleep_on(struct task_struct **p, int state)
 {
 	struct task_struct *tmp;
@@ -185,15 +190,18 @@ static inline void __sleep_on(struct task_struct **p, int state)
 	*p = current;
 	current->state = state;
 repeat:	schedule(); // schedule()中只唤醒可中断的任务，其实就是让任务的state等于0
-	if (*p && *p != current) { // 从被唤醒到执行这条语句之间，有其它任务T被加入到等待队列
-		(**p).state = 0;	   // 首位，所以把这次的被唤醒机会让给了任务T，自己再次进入不可
-		current->state = TASK_UNINTERRUPTIBLE;  // 中断状态，等待下次wake_up()的唤醒？
+	/* 暂时不知道什么会导致出现 *p != current 的场景，但为了能唤醒整个栈中的睡眠任务，
+	   确实需要保证从栈顶的睡眠任务开始进行递归的唤醒回溯，所以是            (**)p.state=0 */
+	if (*p && *p != current) {
+		(**p).state = 0;	  
+		current->state = TASK_UNINTERRUPTIBLE;
 		goto repeat;
 	}
 	if (!*p)
 		printk("Warning: *P = NULL\n\r");
+	/* 唤醒比它早一步入栈的任务，递归回溯的结果是整个栈中的睡眠任务都被唤醒 */
 	if (*p = tmp)      
-		tmp->state=0;  // 为什么要唤醒tmp？
+		tmp->state=0;
 }
 
 /* 将当前任务置为可中断的等待状态，并放入 *p 指定的等待队列中 */

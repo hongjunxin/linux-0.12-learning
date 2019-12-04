@@ -194,7 +194,7 @@ void init(void)
 	setup((void *) &drive_info);
 	(void) open("/dev/tty1",O_RDWR,0);
 	(void) dup(0);
-	(void) dup(0);
+	(void) dup(0);  /* fd 0/1/2 对应的struct file*值相同，即指向同个struct file对象 */
 	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
 		NR_BUFFERS*BLOCK_SIZE);
 	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
