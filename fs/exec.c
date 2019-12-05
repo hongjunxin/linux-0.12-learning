@@ -68,6 +68,19 @@ int sys_uselib(const char * library)
  */
 // 参数：p - 以数据段为起点的参数和环境信息偏移指针
 // 返回：堆栈指针 
+/*
+栈的情况：
+|__| <- p (如果p是4字节对齐的，则刚开始时sp等于p)
+|__| <- NULL(env结束位置)
+...  <- env值(数个)
+|__| <- *envp
+|__| <- NULL(arg结束位置)
+...	 <- arg值(数个)
+|__| <- *argv
+|__| <- envp
+|__| <- argv
+|__| <- argc(sp)
+*/
 static unsigned long * create_tables(char * p,int argc,int envc)
 {
 	unsigned long *argv,*envp;
@@ -86,12 +99,12 @@ static unsigned long * create_tables(char * p,int argc,int envc)
 		put_fs_long((unsigned long) p,argv++);
 		while (get_fs_byte(p++)) /* nothing */ ; // 只是让p前移4个字节?
 	}
-	put_fs_long(0,argv);
+	put_fs_long(0,argv); /* 设置 argv 结束标志 NULL */
 	while (envc-->0) {
 		put_fs_long((unsigned long) p,envp++);
 		while (get_fs_byte(p++)) /* nothing */ ;
 	}
-	put_fs_long(0,envp);
+	put_fs_long(0,envp);  /* 设置 envp 结束标志 NULL */
 	return sp;
 }
 
@@ -200,7 +213,7 @@ static unsigned long change_ldt(unsigned long text_size,unsigned long * page)
 	for (i=MAX_ARG_PAGES-1 ; i>=0 ; i--) {
 		data_base -= PAGE_SIZE;
 		if (page[i])
-			put_dirty_page(page[i],data_base);
+			put_dirty_page(page[i],data_base); /* 将参数和环境变量所在的内存页面的地址，记录到页目录/页表中 */
 	}
 	return data_limit;
 }
@@ -364,13 +377,15 @@ restart_interp:
 		if ((current->close_on_exec>>i)&1)
 			sys_close(i);
 	current->close_on_exec = 0;
+	/* 旧代码/数据区域已经不需要，所以释放它们占用的物理内存页 */
 	free_page_tables(get_base(current->ldt[1]),get_limit(0x0f));
 	free_page_tables(get_base(current->ldt[2]),get_limit(0x17));
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
 	current->used_math = 0;
-	p += change_ldt(ex.a_text,page);
-	p -= LIBRARY_SIZE + MAX_ARG_PAGES*PAGE_SIZE;
+	/* 在这个点 p 的值是(128KB-参数和环境总大小)，假如参数和环境的总大小是8KB，则 p=120KB */
+	p += change_ldt(ex.a_text,page);  /* p = 64MB + 120KB */
+	p -= LIBRARY_SIZE + MAX_ARG_PAGES*PAGE_SIZE; /* p= 64MB+120KB-4MB-128KB = 60MB-8KB */
 	p = (unsigned long) create_tables((char *)p,argc,envc);
 	current->brk = ex.a_bss +
 		(current->end_data = ex.a_data +

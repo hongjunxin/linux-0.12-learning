@@ -236,9 +236,9 @@ unsigned long put_dirty_page(unsigned long page, unsigned long address)
 		printk("Trying to put page %p at %p\n",page,address);
 	if (mem_map[(page-LOW_MEM)>>12] != 1)
 		printk("mem_map disagrees with %p at %p\n",page,address);
-	page_table = (unsigned long *) ((address>>20) & 0xffc);
+	page_table = (unsigned long *) ((address>>20) & 0xffc);  /* 页目录项地址 */
 	if ((*page_table)&1)
-		page_table = (unsigned long *) (0xfffff000 & *page_table);
+		page_table = (unsigned long *) (0xfffff000 & *page_table);  /* 页表地址 */
 	else {
 		if (!(tmp=get_free_page()))
 			return 0;
