@@ -16,7 +16,7 @@
 #include <asm/segment.h>
 
 int sys_pause(void);		// kernel/sched.c
-int sys_close(int fd);		// ¹Ø±ÕÖ¸¶¨ÎÄ¼ş  fs/open.c
+int sys_close(int fd);
 
 void release(struct task_struct * p)
 {
@@ -134,8 +134,7 @@ void audit_ptree()
 }
 #endif /* DEBUG_PROC_TREE */
 
-// ÏòÖ¸¶¨ÈÎÎñ *p ·¢ËÍĞÅºÅ sig£¬È¨ÏŞÎª priv
-// priv: ·¢ËÍĞÅºÅµÄ±êÖ¾¡£¼´²»ĞèÒª¿¼ÂÇ½ø³ÌÓÃ»§ÊôĞÔ»ò¼¶±ğ¶øÄÜ·¢ËÍĞÅºÅµÄÈ¨Àû¡£
+// å‘æŒ‡å®šä»»åŠ¡ *p å‘é€ä¿¡å· sigï¼Œæƒé™ä¸º priv
 static inline int send_sig(long sig,struct task_struct * p,int priv)
 {
 	if (!p)
@@ -170,7 +169,6 @@ int session_of_pgrp(int pgrp)
 	return -1;
 }
 
-// ÏòÖ¸¶¨½ø³Ì×é pgrp ÖĞµÄ½ø³Ì·¢ËÍĞÅºÅ
 int kill_pg(int pgrp, int sig, int priv)
 {
 	struct task_struct **p;
@@ -267,15 +265,13 @@ volatile void do_exit(long code)
 	struct task_struct *p;
 	int i;
 
-	// ÊÍ·Åµ±Ç°½ø³Ì´úÂë¶ÎºÍÊı¾İ¶ÎËùÕ¼µÄÄÚ´æÒ³
-	// free_page_tables ÔÚ mm/memory.c
+	/* é‡Šæ”¾å½“å‰è¿›ç¨‹ä»£ç æ®µå’Œæ•°æ®æ®µæ‰€å çš„å†…å­˜é¡µ */
 	free_page_tables(get_base(current->ldt[1]),get_limit(0x0f));
 	free_page_tables(get_base(current->ldt[2]),get_limit(0x17));
 	for (i=0 ; i<NR_OPEN ; i++)
 		if (current->filp[i])
 			sys_close(i);
 		
-	// ¶Ôµ±Ç°½ø³ÌµÄ¹¤×÷Ä¿Â¼¡¢¸ùÄ¿Â¼¡¢³ÌĞòµÄ i ½Úµã½øĞĞÍ¬²½£¬²¢ÖÃ¿Õ
 	iput(current->pwd);
 	current->pwd = NULL;
 	iput(current->root);
@@ -339,6 +335,8 @@ volatile void do_exit(long code)
 			 * This is it; link everything into init's children 
 			 * and leave 
 			 */
+			/* å‡å¦‚current->p_cptræ˜¯Aï¼ŒAçš„p_osptræ˜¯Bï¼ŒBçš„p_ysptræ˜¯Aï¼Œå¹¶ä¸”A<=>B<=>Cï¼Œ
+			   task[1]->p_cptræ˜¯Xï¼Œåˆ™é“¾æ¥åçš„æƒ…å†µæ˜¯ A<=>B<=>C<=>X */ 
 			p->p_osptr = task[1]->p_cptr;
 			task[1]->p_cptr->p_ysptr = p;
 			task[1]->p_cptr = current->p_cptr;
@@ -346,12 +344,12 @@ volatile void do_exit(long code)
 			break;
 		}
 	}
-	// Èç¹ûµ±Ç°½ø³ÌÊÇ»á»°×é³¤
+
 	if (current->leader) {
 		struct task_struct **p;
 		struct tty_struct *tty;
 		
-		// Èç¹ûµ±Ç°½ø³ÌÓĞ¿ØÖÆÖÕ¶Ë
+		/* å¦‚æœå½“å‰è¿›ç¨‹æœ‰æ§åˆ¶ç»ˆç«¯ */
 		if (current->tty >= 0) {
 			tty = TTY_TABLE(current->tty);
 			if (tty->pgrp>0)
@@ -371,19 +369,20 @@ volatile void do_exit(long code)
 	schedule();
 }
 
-// ÏµÍ³µ÷ÓÃ exit()
 int sys_exit(int error_code)
 {
 	do_exit((error_code&0xff)<<8);
 }
 
-// Èç¹û·µ»Ø×´Ì¬Ö¸Õë stat_addr ²»Îª¿Õ£¬Ôò¾Í½«×´Ì¬ĞÅÏ¢±£´æµ½ÄÇÀï¡£ 
+// å¦‚æœè¿”å›çŠ¶æ€æŒ‡é’ˆ stat_addr ä¸ä¸ºç©ºï¼Œåˆ™å°±å°†çŠ¶æ€ä¿¡æ¯ä¿å­˜åˆ°é‚£é‡Œ
 int sys_waitpid(pid_t pid,unsigned long * stat_addr, int options)
 {
 	int flag;
 	struct task_struct *p;
 	unsigned long oldblocked;
 
+	/* 1. stat_addr æ‰€åœ¨çš„ç£ç›˜ç›˜å—è¿˜æ²¡è¢«åŠ è½½åˆ°å†…å­˜é¡µé¢ï¼›
+	   2. å·²è¢«åŠ è½½åˆ°å†…å­˜é¡µé¢ï¼Œä½†è¯¥å†…å­˜é¡µé¢ä¸å¯å†™ï¼Œåˆ™æ‰§è¡Œå†™æ—¶å¤åˆ¶ */
 	verify_area(stat_addr,4);
 repeat:
 	flag=0;
@@ -403,8 +402,7 @@ repeat:
 				if (!(options & WUNTRACED) || 
 				    !p->exit_code)
 					continue;
-				// Ôò°Ñ×´Ì¬ĞÅÏ¢ 0x7f ·ÅÈë*stat_addr
-				// 0x7f ±íÊ¾µÄ·µ»Ø×´Ì¬Ê¹ WIFSTOPPED()ºêÎªÕæ, include/sys/wait.h
+				// 0x7f è¡¨ç¤ºçš„è¿”å›çŠ¶æ€ä½¿ WIFSTOPPED()å®ä¸ºçœŸ
 				put_fs_long((p->exit_code << 8) | 0x7f,
 					stat_addr);
 				p->exit_code = 0;
@@ -420,8 +418,8 @@ repeat:
 #endif
 				return flag;
 			default:
-				// Èç¹û×Ó½ø³Ì p µÄ×´Ì¬¼È²»ÊÇÍ£Ö¹Ò²²»ÊÇ½©ËÀ£¬Ôò flag ÖÃ 1
-				// ±íÊ¾ÕÒµ½¹ıÒ»¸ö·ûºÏÒªÇóµÄ×Ó½ø³Ì£¬µ«ÊÇËü´¦ÓÚÔËĞĞÌ¬»òË¯ÃßÌ¬
+				/* å¦‚æœå­è¿›ç¨‹ p çš„çŠ¶æ€æ—¢ä¸æ˜¯åœæ­¢ä¹Ÿä¸æ˜¯åƒµæ­»ï¼Œåˆ™ flag ç½® 1
+				   è¡¨ç¤ºæ‰¾åˆ°è¿‡ä¸€ä¸ªç¬¦åˆè¦æ±‚çš„å­è¿›ç¨‹ï¼Œä½†æ˜¯å®ƒå¤„äºè¿è¡Œæ€æˆ–ç¡çœ æ€ */
 				flag=1;
 				continue;
 		}
